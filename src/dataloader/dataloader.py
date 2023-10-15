@@ -1,10 +1,6 @@
-import os
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
-from PIL import Image
-import SimpleITK as sitk
 
 
 def train_val_test_split(data: list,
@@ -22,57 +18,16 @@ def train_val_test_split(data: list,
     return data[:train_size], data[train_size:train_size + val_size], data[train_size + val_size:]
 
 
-def read_img(raw_data_dir: Path, patient_name: str, view: str, instant: str) -> np.ndarray:
-    patient_dir = raw_data_dir / patient_name
-    gt_pattern = '{patient_name}_{view}_{instant}_gt.nii.gz'
-    img_pattern = '{patient_name}_{view}_{instant}.nii.gz'
-
-    # Load image and save info
-    gt_image = sitk.ReadImage(
-        str(patient_dir / gt_pattern.format(patient_name=patient_name, view=view, instant=instant)))
-    input_image = sitk.ReadImage(
-        str(patient_dir / img_pattern.format(patient_name=patient_name, view=view, instant=instant)))
-
-    # Extract numpy array from the SimpleITK image object
-    gt_array = sitk.GetArrayFromImage(gt_image)
-    img_array = sitk.GetArrayFromImage(input_image)
-
-    # Expand gray scale range to 0-255
-    gt_array = ((gt_array - gt_array.min()) / (gt_array.max() - gt_array.min()) * 255).astype(np.uint8)
-    img_array = ((img_array - img_array.min()) / (img_array.max() - img_array.min()) * 255).astype(np.uint8)
-
-    fig, ax = plt.subplots(1, 2)
-    ax[0].imshow(img_array, cmap='gray')
-    ax[1].imshow(gt_array, cmap='gray')
-    plt.show()
-
-    # Image.fromarray(gt_array).show()
-    # Image.fromarray(img_array).show()
-
-    return np.stack([gt_array, img_array], axis=0)
-
-
 class DataLoader(object):
-    def __init__(self):
+    def __init__(self, config):
         self.x_train, self.y_train, self.x_test = None, None, None
+        self.config = config
 
-    def load_data(self, config: object, inference: bool = False) -> list:
-        raw_data_dir = Path(config.data.raw)
-        patient_list = os.listdir(raw_data_dir)
-
-        for patient_name in patient_list:
-            # exclude hidden folders
-            if patient_name.startswith('.'):
-                continue
-
-            img_2ch_es = read_img(raw_data_dir, patient_name, view='2CH', instant='ES')
-            img_2ch_ed = read_img(raw_data_dir, patient_name, view='2CH', instant='ED')
-            img_4ch_es = read_img(raw_data_dir, patient_name, view='4CH', instant='ES')
-            img_4ch_ed = read_img(raw_data_dir, patient_name, view='4CH', instant='ED')
-
-            print()
-
-        # return self.process(config, inference)
+    def load_data(self, inference: bool = False):
+        img_path_list = np.loadtxt(Path(self.config.data.processed) / 'img_path_list.txt', dtype=str)
+        gt_path_list = np.loadtxt(Path(self.config.data.processed) / 'gt_path_list.txt', dtype=str)
+        # draw_contours(img_path_list[0], gt_path_list[0])
+        pass
 
     def process(self, config: object, inference: bool = False) -> list:
         # self.y_train.surface.value_counts().plot(kind='bar')

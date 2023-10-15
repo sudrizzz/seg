@@ -34,7 +34,7 @@ class Model(BaseModel, ABC):
         self.logger.info(config)
 
     def load_data(self) -> None:
-        data = DataLoader().load_data(self.config, inference=False)
+        data = DataLoader(self.config).load_data(inference=False)
         self.train_sequence, self.val_sequence = data[0], data[1]
 
     def build(self) -> None:

@@ -1,8 +1,10 @@
 import os
 from os.path import abspath, exists
 
+import cv2
 import matplotlib.pyplot as plt
 import seaborn as sns
+from PIL import Image
 
 
 def makesure_dirs(paths) -> None:
@@ -37,3 +39,11 @@ def plot_matrix(matrix, classes, x_label, y_label, save_to, ticks_rotation=45, s
     plt.savefig(save_to, bbox_inches='tight', pad_inches=0.5)
     if show:
         plt.show()
+
+
+def draw_contours(image_path, mask_path):
+    img = cv2.imread(str(image_path), cv2.IMREAD_GRAYSCALE)
+    mask = cv2.imread(str(mask_path), cv2.IMREAD_GRAYSCALE)
+    contours, hierarchy = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    img = cv2.drawContours(cv2.cvtColor(img, cv2.COLOR_GRAY2RGB), contours, -1, (255, 0, 0), 2)
+    Image.fromarray(img).show()
