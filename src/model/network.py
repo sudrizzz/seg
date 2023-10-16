@@ -5,17 +5,7 @@ import torch.nn as nn
 class Network(nn.Module):
     def __init__(self, config):
         super().__init__()
-        self.lstm = nn.LSTM(
-            input_size=config.model.input_size,
-            hidden_size=config.model.hidden_size,
-            num_layers=config.model.num_layers,
-            dropout=config.model.dropout,
-            batch_first=True
-        )
-        self.classifier = nn.Linear(config.model.hidden_size, config.model.n_classes)
 
-    def forward(self, x: torch.Tensor) -> torch.Tensor:
-        self.lstm.flatten_parameters()
-        _, (hidden, _) = self.lstm(x)
-        out = hidden[-1]
-        return self.classifier(out)
+    def forward(self, image: torch.Tensor) -> torch.Tensor:
+        # TODO
+        pass

@@ -8,10 +8,13 @@ CFG = {
     },
     "train": {
         "seed": 42,
-        "batch_size": 64,
-        "epoch": 10,
         "train_portion": 0.7,
         "val_portion": 0.2,
+        "shuffle": True,
+        "image_width": 512,
+        "image_height": 512,
+        "batch_size": 64,
+        "epoch": 10,
         "lr": 1e-3
     },
     "model": {

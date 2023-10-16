@@ -22,7 +22,7 @@ class Model(BaseModel, ABC):
         self.optimizer = None
         self.criterion = nn.CrossEntropyLoss()
 
-        self.train_sequence, self.val_sequence = None, None
+        self.train_data, self.val_data = None, None
         self.train_loss, self.val_loss = [], []
 
         self.save_to = '../' + self.config.model.save_to + strftime('%Y-%m-%d-%H-%M')
@@ -35,7 +35,7 @@ class Model(BaseModel, ABC):
 
     def load_data(self) -> None:
         data = DataLoader(self.config).load_data(inference=False)
-        self.train_sequence, self.val_sequence = data[0], data[1]
+        self.train_data, self.val_data = data['train'], data['val']
 
     def build(self) -> None:
         self.model = Network(self.config)
@@ -47,32 +47,32 @@ class Model(BaseModel, ABC):
         self.model.optimizer = torch.optim.Adam(self.model.parameters(), lr=self.config.train.lr)
 
         train_dataloader = torch.utils.data.DataLoader(
-            CustomDataset(self.train_sequence),
+            CustomDataset(self.train_data, self.config.train.image_width, self.config.train.image_height),
             batch_size=self.config.train.batch_size,
             shuffle=True
         )
         val_dataloader = torch.utils.data.DataLoader(
-            CustomDataset(self.val_sequence),
+            CustomDataset(self.val_data, self.config.train.image_width, self.config.train.image_height),
         )
 
-        self.logger.info("Length of train_sequence: {}".format(len(self.train_sequence)))
-        self.logger.info("Length of val_sequence: {}".format(len(self.val_sequence)))
+        self.logger.info("Length of train_sequence: {}".format(len(self.train_data)))
+        self.logger.info("Length of val_sequence: {}".format(len(self.val_data)))
 
         self.logger.info("===> Training started.")
         for epoch in range(self.config.train.epoch):
             train_loss_tmp = .0
             self.model.train()
             for step, batch in enumerate(train_dataloader):
-                x, y = batch['sequence'].to(self.device), batch['label'].to(self.device)
-                output = self.model(x)
-                loss = self.criterion(output, y)
+                images, masks = batch[0].to(self.device), batch[1].to(self.device)
+                output = self.model(images)
+                loss = self.criterion(output, masks)
                 self.model.optimizer.zero_grad()
                 loss.backward()
                 self.model.optimizer.step()
                 train_loss_tmp += loss.item()
 
                 prediction = torch.argmax(output, dim=1)
-                accuracy = (prediction == y).sum().item() / len(y)
+                accuracy = (prediction == masks).sum().item() / len(masks)
 
                 self.logger.info(
                     "===> Epoch [{:0>3d}/{:0>3d}] ({:0>3d}/{:0>3d}), Loss : {:.8f}, Accuracy : {:.4f}".format(
@@ -86,13 +86,13 @@ class Model(BaseModel, ABC):
             self.model.eval()
             with torch.no_grad():
                 for _, batch in enumerate(val_dataloader):
-                    x, y = batch['sequence'].to(self.device), batch['label'].to(self.device)
-                    output = self.model(x)
-                    loss = self.criterion(output, y)
+                    images, masks = batch[0].to(self.device), batch[1].to(self.device)
+                    output = self.model(images)
+                    loss = self.criterion(output, masks)
                     val_loss += loss.item()
 
                     prediction = torch.argmax(output, dim=1)
-                    accuracy += (prediction == y).sum().item()
+                    accuracy += (prediction == masks).sum().item()
 
                 self.logger.info(
                     "===> Validation, Average Loss : {:.8f}, Accuracy : {:.4f}".format(
@@ -110,8 +110,6 @@ class Model(BaseModel, ABC):
         self.logger.info("===> Training finished.")
 
     def save(self, epoch: int, model: torch.nn.Module) -> None:
-        # revise plot index error
-        epoch += 1
         model_path = self.save_to + '/best_model.pth'
         loss_path = self.save_to + '/loss.txt'
         fig_path = self.save_to + '/loss.png'
@@ -131,9 +129,9 @@ class Model(BaseModel, ABC):
         plt.gcf().set_size_inches(8, 6)
         plt.xlabel('epoch')
         plt.ylabel('loss')
-        plt.plot(np.linspace(1, epoch, epoch).tolist(), self.train_loss, label='train loss')
-        plt.plot(np.linspace(1, epoch, epoch).tolist(), self.val_loss, label='val loss')
-        plt.legend(['train loss', 'val loss'])
-        plt.savefig(fig_path, bbox_inches='tight', dpi=300)
+        x = np.linspace(0, epoch, epoch + 1)
+        plt.plot(x, self.train_loss, label='train loss')
+        plt.plot(x, self.val_loss, label='val loss')
+        plt.savefig(fig_path, bbox_inches='tight', dpi=300, pad_inches=0.1)
         plt.clf()
         self.logger.info("===> Model saved to {}".format(model_path))

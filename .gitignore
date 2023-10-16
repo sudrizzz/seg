@@ -76,8 +76,10 @@ target/
 .ipynb_checkpoints/
 
 # exclude raw from source control by default
-data
-saved
+data/**
+saved/**
+!**/.gitkeep
+
 
 # Mac OS-specific storage files
 .DS_Store

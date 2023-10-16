@@ -1,21 +1,7 @@
 from pathlib import Path
 
+import cv2
 import numpy as np
-
-
-def train_val_test_split(data: list,
-                         train_portion: float = 0.6,
-                         val_portion: float = 0.2,
-                         shuffle: bool = False, seed: int = 42) -> (list, list, list):
-    """
-    Split dataset into train, val and test dataset
-    """
-    if shuffle:
-        np.random.seed(seed)
-        np.random.shuffle(data)
-    train_size = int(len(data) * train_portion)
-    val_size = int(len(data) * val_portion)
-    return data[:train_size], data[train_size:train_size + val_size], data[train_size + val_size:]
 
 
 class DataLoader(object):
@@ -24,26 +10,50 @@ class DataLoader(object):
         self.config = config
 
     def load_data(self, inference: bool = False):
-        img_path_list = np.loadtxt(Path(self.config.data.processed) / 'img_path_list.txt', dtype=str)
-        gt_path_list = np.loadtxt(Path(self.config.data.processed) / 'gt_path_list.txt', dtype=str)
-        # draw_contours(img_path_list[0], gt_path_list[0])
-        pass
+        images = np.loadtxt(Path(self.config.data.processed) / 'img_path_list.txt', dtype=str)
+        masks = np.loadtxt(Path(self.config.data.processed) / 'gt_path_list.txt', dtype=str)
+        return self.train_val_test_split(images=images,
+                                         masks=masks,
+                                         train_portion=self.config.train.train_portion,
+                                         val_portion=self.config.train.val_portion,
+                                         shuffle=self.config.train.shuffle,
+                                         inference=inference)
 
-    def process(self, config: object, inference: bool = False) -> list:
-        # self.y_train.surface.value_counts().plot(kind='bar')
-        # plt.xticks(rotation=45)
-        # plt.show()
+    def train_val_test_split(self,
+                             images: np.ndarray,
+                             masks: np.ndarray,
+                             train_portion: float = 0.7,
+                             val_portion: float = 0.2,
+                             shuffle: bool = False,
+                             inference: bool = False) -> dict:
+        """
+        Split dataset into train, val and test dataset
+        """
+        if shuffle:
+            np.random.seed(self.config.train.seed)
+            permutation = np.random.permutation(len(images))
+            np.savetxt(Path(self.config.data.processed) / 'permutation.txt', permutation)
+            images = images[permutation]
+            masks = masks[permutation]
 
-        if inference:
-            label = -1
-            inference_sequence = []
-            feature_columns = self.x_test.columns.tolist()[3:]
-            for series_id, group in self.x_test.groupby('series_id'):
-                sequence_feature = group[feature_columns]
-                inference_sequence.append((sequence_feature, label))
-            return [inference_sequence]
+        train_size = int(len(images) * train_portion)
+        val_size = int(len(images) * val_portion)
 
+        if not inference:
+            return {
+                'train': {
+                    'images': images[:train_size],
+                    'masks': masks[:train_size]
+                },
+                'val': {
+                    'images': images[train_size:train_size + val_size],
+                    'masks': masks[train_size:train_size + val_size]
+                }
+            }
         else:
-            pass
-
-            # return [train_sequence, val_sequence, test_sequence]
+            return {
+                'test': {
+                    'images': images[train_size + val_size:],
+                    'masks': masks[train_size + val_size:]
+                }
+            }
